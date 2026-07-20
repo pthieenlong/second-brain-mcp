@@ -4,11 +4,11 @@ services:
     container_name: second-brain-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: brain
-      POSTGRES_PASSWORD: brainpass
-      POSTGRES_DB: second_brain
+      POSTGRES_USER: ${POSTGRES_USER:-brain}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brainpass}
+      POSTGRES_DB: ${POSTGRES_DB:-second_brain}
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -19,12 +19,13 @@ services:
     depends_on:
       - postgres
     environment:
-      DATABASE_URL: postgresql://brain:brainpass@postgres:5432/second_brain?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-brain}:${POSTGRES_PASSWORD:-brainpass}@postgres:5432/${POSTGRES_DB:-second_brain}?schema=public
       VAULT_PATH: /vault
+      NOTE_CATEGORIES: ${NOTE_CATEGORIES:-}
     ports:
-      - '3000:3000'
+      - '${APP_PORT:-3000}:3000'
     volumes:
-      - /Users/pthieenlong/Documents/SecondBrain:/vault
+      - ${VAULT_PATH:?VAULT_PATH is required - copy .env.example to .env and set it}:/vault
 
 volumes:
   pgdata:

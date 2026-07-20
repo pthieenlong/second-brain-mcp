@@ -1,98 +1,124 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Second Brain MCP
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant capture, search, read, update, and delete notes in a plain Markdown vault — the kind Obsidian reads.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+You talk to your AI normally. When something is worth keeping, it files the note away for you: picks a category, adds tags, writes a `.md` file with YAML frontmatter. Later you can ask it to find things back. The notes stay yours — plain files on your disk, readable without this tool.
 
-## Description
+## How it works
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Two storage layers, each doing what it's good at:
 
-## Project setup
+- **The vault** — your notes as `.md` files under `VAULT_PATH/<category>/`, with YAML frontmatter. This is the source of truth. Open it in Obsidian, grep it, back it up, sync it — it's just files.
+- **Postgres** — an index of note metadata (title, category, tags, file path) so search is fast without scanning every file. Rebuildable from the vault if lost.
 
-```bash
-$ pnpm install
+```
+capture_note  →  writes .md to vault  →  indexes metadata in Postgres
+search_notes  →  queries Postgres     →  returns metadata + note id
+get_note      →  looks up path by id  →  reads the file from disk
 ```
 
-## Compile and run the project
+## Tools exposed
+
+| Tool | What it does |
+|---|---|
+| `capture_note` | Save a new note. The AI classifies category and tags from the content. |
+| `search_notes` | Find notes by title keyword, category, and/or tags. Returns metadata, not content. |
+| `get_note` | Read a note's full content by id. |
+| `update_note` | Edit a note. Changing title or category moves the file to its new path. |
+| `delete_note` | Remove a note from both the vault and the index. |
+
+## Setup
+
+You need [Docker](https://docs.docker.com/get-docker/) and a folder to keep notes in.
 
 ```bash
-# development
-$ pnpm run start
+git clone https://github.com/pthieenlong/second-brain-mcp.git
+cd second-brain-mcp
 
-# watch mode
-$ pnpm run start:dev
+cp .env.example .env
+# Open .env and set VAULT_PATH to an absolute path on your machine.
+# Everything else has working defaults.
 
-# production mode
-$ pnpm run start:prod
+docker compose up -d
 ```
 
-## Run tests
+That's it. The server is at `http://localhost:3000/mcp`, Postgres migrations run automatically on startup, and both containers restart on their own if your machine reboots.
+
+Check it came up:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+docker compose logs app
 ```
 
-## Deployment
+### Connecting your AI client
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Point any MCP client at `http://localhost:3000/mcp` over **HTTP** — this server speaks Streamable HTTP, not stdio. Configuration differs per client, but it usually looks like:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```json
+{
+  "mcpServers": {
+    "second-brain": {
+      "serverUrl": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+If your client offers a transport dropdown, pick HTTP/SSE/Streamable rather than stdio. Clients configured with `command` + `args` will try to spawn this as a subprocess and fail — it's a web server, not a stdio process.
+
+### Categories
+
+Notes are filed into folders under your vault. The defaults:
+
+```
+01-Fundamentals  02-Work  03-Product-Thinking  04-Learning
+05-Career        06-Personal  07-Projects
+```
+
+Change them in `.env` via `NOTE_CATEGORIES` (comma-separated), then `docker compose up -d --build`. Anything the AI picks that isn't on the list lands in `00-Inbox` instead of being rejected — so you sort it later rather than losing it.
+
+## Development
+
+The project uses **pnpm**. Postgres must be running (`docker compose up -d postgres`) and `.env` filled in.
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm install
+pnpm run start:dev        # watch mode
+
+pnpm run test             # unit tests
+pnpm run build
+pnpm run lint
+
+npx prisma migrate dev    # create + apply a migration
+npx prisma generate       # regenerate client after schema changes
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Try a tool without an AI client:
 
-## Resources
+```bash
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_notes","arguments":{"keyword":"test"}}}'
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## Things worth knowing
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**No authentication.** Anything that can reach port 3000 can read and write your vault. Fine on `localhost`; put it behind auth before exposing it anywhere else.
 
-## Support
+**File and database can drift.** A note is written to disk first, then indexed. If the database write fails afterwards, the file exists but won't show up in search. There's no reconciliation job yet — [contributions welcome](#contributing).
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Default Postgres password.** `.env.example` ships with `brainpass`. Change it if the database is reachable beyond your machine.
 
-## Stay in touch
+## Contributing
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Issues and pull requests are welcome. Some things that would genuinely help:
+
+- Full-text or semantic search over note content (currently only titles are searchable)
+- A reconciliation command that rebuilds the index from the vault
+- Authentication for the MCP endpoint
+- Test coverage — the service layer has none
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT — see [LICENSE](LICENSE).

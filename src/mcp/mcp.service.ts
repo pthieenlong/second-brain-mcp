@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Injectable } from '@nestjs/common';
 import { NoteIndexService } from 'src/note-index/note-index.service';
-import { StorageService } from 'src/storage/storage.service';
+import { INBOX, StorageService } from 'src/storage/storage.service';
 import { z } from 'zod'
 @Injectable()
 export class McpService {
@@ -18,8 +18,8 @@ export class McpService {
             {
                 title: 'Capture note',
                 description: 'Lưu một note vào second brain. AI cần tự phân loại category và tags dựa trên nội dung. ' +
-                    'Category hợp lệ: 01-Fundamentals, 02-Odoo-Job, 03-Product-Thinking, 04-English, 05-Career-Domain, 06-Personal, 07-Projects. ' +
-                    'Nếu không chắc category, để trống hoặc ghi 00-Inbox.',
+                    `Category hợp lệ: ${this.storage.categories.join(', ')}. ` +
+                    `Nếu không chắc category, để trống hoặc ghi ${INBOX}.`,
                 inputSchema: {
                     title: z.string().describe('Tiêu đề ngắn gọn cho note'),
                     content: z.string().describe('Nội dung chính của note'),
@@ -87,6 +87,60 @@ export class McpService {
                 } catch (error) {
                     console.error("Failed to read note: ", error)
                     return { content: [{ type: 'text', text: `Failed to read note: ${error}` }] };
+                }
+            }
+        )
+
+        server.registerTool(
+            'update_note',
+            {
+                title: 'Update note',
+                description: 'Cập nhật một note đã có (theo id). Có thể đổi title, content, category, tags. Nếu title/category đổi, file sẽ được di chuyển sang vị trí mới trong vault.',
+                inputSchema: {
+                    id: z.string().describe('id của note cần sửa'),
+                    title: z.string().describe('Tiêu đề mới cho note'),
+                    content: z.string().describe('Nội dung mới của note'),
+                    category: z.string().describe('Category mới'),
+                    tags: z.array(z.string()).describe('Danh sách tag mới'),
+                },
+            },
+            async ({ id, title, content, category, tags }) => {
+                try {
+                    const note = await this.noteIndex.findById(id);
+                    if (!note) {
+                        return { content: [{ type: 'text', text: `Không tìm thấy note với id ${id}` }] };
+                    }
+                    const newFilePath = await this.storage.updateNote(note.filePath, { title, content, category, tags });
+                    await this.noteIndex.updateNote(id, { title, category, tags, filePath: newFilePath });
+                    return { content: [{ type: 'text', text: `Note updated at ${newFilePath}` }] };
+                } catch (error) {
+                    console.error("Failed to update note: ", error)
+                    return { content: [{ type: 'text', text: `Failed to update note: ${error}` }] };
+                }
+            }
+        )
+
+        server.registerTool(
+            'delete_note',
+            {
+                title: 'Delete note',
+                description: 'Xóa một note khỏi second brain (theo id) — xóa cả file trong vault lẫn dữ liệu index.',
+                inputSchema: {
+                    id: z.string().describe('id của note cần xóa'),
+                },
+            },
+            async ({ id }) => {
+                try {
+                    const note = await this.noteIndex.findById(id);
+                    if (!note) {
+                        return { content: [{ type: 'text', text: `Không tìm thấy note với id ${id}` }] };
+                    }
+                    await this.storage.deleteNote(note.filePath);
+                    await this.noteIndex.deleteNote(id);
+                    return { content: [{ type: 'text', text: `Note ${id} đã được xóa.` }] };
+                } catch (error) {
+                    console.error("Failed to delete note: ", error)
+                    return { content: [{ type: 'text', text: `Failed to delete note: ${error}` }] };
                 }
             }
         )

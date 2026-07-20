@@ -50,4 +50,30 @@ export class NoteIndexService {
     async findById(id: string) {
         return this.prisma.note.findUnique({ where: { id } })
     }
+
+    async updateNote(id: string, data: IndexedNote) {
+        try {
+            return await this.prisma.note.update({
+                where: { id },
+                data: {
+                    title: data.title,
+                    category: data.category,
+                    tag: data.tags,
+                    filePath: data.filePath,
+                }
+            })
+        } catch (error) {
+            console.error("Failed to update note in database: ", error)
+            throw error
+        }
+    }
+
+    async deleteNote(id: string) {
+        try {
+            return await this.prisma.note.delete({ where: { id } })
+        } catch (error) {
+            console.error("Failed to delete note from database: ", error)
+            throw error
+        }
+    }
 }
