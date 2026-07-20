@@ -8,9 +8,10 @@ import { StorageModule } from './storage/storage.module';
 import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { NoteIndexService } from './note-index/note-index.service';
+import { NoteIndexModule } from './note-index/note-index.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), McpModule, StorageModule, PrismaModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), McpModule, StorageModule, PrismaModule, NoteIndexModule],
   controllers: [AppController],
   providers: [AppService, StorageService, PrismaService, NoteIndexService],
 })

@@ -3,14 +3,28 @@ services:
     image: postgres:16
     container_name: second-brain-db
     restart: unless-stopped
-    environment: 
+    environment:
       POSTGRES_USER: brain
       POSTGRES_PASSWORD: brainpass
       POSTGRES_DB: second_brain
-    ports: 
+    ports:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: second-brain-mcp
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://brain:brainpass@postgres:5432/second_brain?schema=public
+      VAULT_PATH: /vault
+    ports:
+      - '3000:3000'
+    volumes:
+      - /Users/pthieenlong/Documents/SecondBrain:/vault
 
 volumes:
   pgdata:

@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { McpService } from './mcp.service';
 import { McpController } from './mcp.controller';
 import { StorageModule } from 'src/storage/storage.module';
+import { NoteIndexModule } from 'src/note-index/note-index.module';
 
 @Module({
-  imports: [StorageModule],
+  imports: [StorageModule, NoteIndexModule],
   providers: [McpService],
   controllers: [McpController]
 })

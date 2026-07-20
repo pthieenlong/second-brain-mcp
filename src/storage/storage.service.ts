@@ -70,4 +70,13 @@ export class StorageService {
         await fs.writeFile(filePath, body, 'utf-8');
         return filePath;
     }
+
+    async readNote(filePath: string): Promise<string> {
+        const resolved = path.resolve(filePath);
+        const vaultRoot = path.resolve(this.vaultPath);
+        if (!resolved.startsWith(vaultRoot + path.sep)) {
+            throw new Error('Invalid file path: outside of vault');
+        }
+        return fs.readFile(resolved, 'utf-8');
+    }
 }
