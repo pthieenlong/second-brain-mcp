@@ -1,124 +1,191 @@
 # Second Brain MCP
 
-An [MCP](https://modelcontextprotocol.io) server that lets an AI assistant capture, search, read, update, and delete notes in a plain Markdown vault — the kind Obsidian reads.
+*[English version](README.en.md)*
 
-You talk to your AI normally. When something is worth keeping, it files the note away for you: picks a category, adds tags, writes a `.md` file with YAML frontmatter. Later you can ask it to find things back. The notes stay yours — plain files on your disk, readable without this tool.
+Một [MCP](https://modelcontextprotocol.io) server giúp AI ghi chú giùm bạn — vào một thư mục Markdown bình thường, kiểu Obsidian đọc được.
 
-## How it works
+Bạn cứ trò chuyện với AI như thường. Khi có gì đáng lưu, bảo nó lưu lại: nó tự chọn category, tự gắn tag, tự ghi thành file `.md`. Lần sau muốn tìm lại thì hỏi nó. Ghi chú vẫn là của bạn — file thường nằm trên ổ cứng, không cần công cụ này cũng đọc được.
 
-Two storage layers, each doing what it's good at:
+---
 
-- **The vault** — your notes as `.md` files under `VAULT_PATH/<category>/`, with YAML frontmatter. This is the source of truth. Open it in Obsidian, grep it, back it up, sync it — it's just files.
-- **Postgres** — an index of note metadata (title, category, tags, file path) so search is fast without scanning every file. Rebuildable from the vault if lost.
+## Cài đặt
 
-```
-capture_note  →  writes .md to vault  →  indexes metadata in Postgres
-search_notes  →  queries Postgres     →  returns metadata + note id
-get_note      →  looks up path by id  →  reads the file from disk
-```
+### Bước 1 — Chuẩn bị
 
-## Tools exposed
+Bạn cần:
 
-| Tool | What it does |
-|---|---|
-| `capture_note` | Save a new note. The AI classifies category and tags from the content. |
-| `search_notes` | Find notes by title keyword, category, and/or tags. Returns metadata, not content. |
-| `get_note` | Read a note's full content by id. |
-| `update_note` | Edit a note. Changing title or category moves the file to its new path. |
-| `delete_note` | Remove a note from both the vault and the index. |
+- **Node.js phiên bản 20 trở lên.** Kiểm tra bằng cách mở Terminal (macOS) hoặc Command Prompt (Windows) rồi gõ `node --version`. Nếu báo lỗi hoặc số nhỏ hơn 20, tải tại [nodejs.org](https://nodejs.org).
+- **Một AI client hỗ trợ MCP** — Claude Desktop, Antigravity, Cursor, hoặc tương tự.
 
-## Setup
+### Bước 2 — Chọn nơi lưu ghi chú
 
-You need [Docker](https://docs.docker.com/get-docker/) and a folder to keep notes in.
+Quyết định thư mục sẽ chứa ghi chú, ví dụ `/Users/ban/Documents/Notes`. Thư mục chưa tồn tại cũng được, nó sẽ tự tạo.
 
-```bash
-git clone https://github.com/pthieenlong/second-brain-mcp.git
-cd second-brain-mcp
+Nếu bạn đã dùng Obsidian, có thể trỏ thẳng vào vault sẵn có.
 
-cp .env.example .env
-# Open .env and set VAULT_PATH to an absolute path on your machine.
-# Everything else has working defaults.
+### Bước 3 — Thêm vào cấu hình AI client
 
-docker compose up -d
-```
-
-That's it. The server is at `http://localhost:3000/mcp`, Postgres migrations run automatically on startup, and both containers restart on their own if your machine reboots.
-
-Check it came up:
-
-```bash
-docker compose logs app
-```
-
-### Connecting your AI client
-
-Point any MCP client at `http://localhost:3000/mcp` over **HTTP** — this server speaks Streamable HTTP, not stdio. Configuration differs per client, but it usually looks like:
+Mở file cấu hình MCP của client bạn dùng, thêm đoạn này:
 
 ```json
 {
   "mcpServers": {
     "second-brain": {
-      "serverUrl": "http://localhost:3000/mcp"
+      "command": "npx",
+      "args": ["-y", "second-brain-mcp"],
+      "env": {
+        "VAULT_PATH": "/Users/ban/Documents/Notes"
+      }
     }
   }
 }
 ```
 
-If your client offers a transport dropdown, pick HTTP/SSE/Streamable rather than stdio. Clients configured with `command` + `args` will try to spawn this as a subprocess and fail — it's a web server, not a stdio process.
+Nhớ thay `/Users/ban/Documents/Notes` bằng đường dẫn thật của bạn. Đường dẫn phải đầy đủ từ gốc, không dùng `~`.
 
-### Categories
+Nếu file cấu hình đã có sẵn `mcpServers` với server khác, chỉ cần thêm `"second-brain": {...}` vào bên trong, đừng ghi đè cả khối.
 
-Notes are filed into folders under your vault. The defaults:
+Chỗ đặt file cấu hình tùy client — tìm trong tài liệu của client mục "MCP servers".
+
+### Bước 4 — Khởi động lại client
+
+Đóng hẳn và mở lại AI client. Lần đầu chạy sẽ hơi chậm vì `npx` tải package về.
+
+### Bước 5 — Thử
+
+Nhắn với AI: *"Lưu note này vào second brain: hôm nay học được cách dùng React hooks"*
+
+Nếu thành công, nó sẽ báo đã lưu và bạn thấy file `.md` mới trong thư mục vừa chọn.
+
+---
+
+## AI làm được gì
+
+| Công cụ | Chức năng |
+|---|---|
+| `capture_note` | Lưu ghi chú mới. AI tự phân loại category và tag. |
+| `search_notes` | Tìm theo từ khóa tiêu đề, category, hoặc tag. |
+| `get_note` | Đọc toàn bộ nội dung một ghi chú. |
+| `update_note` | Sửa ghi chú. Đổi tiêu đề hoặc category thì file tự chuyển sang chỗ mới. |
+| `delete_note` | Xóa ghi chú khỏi cả thư mục lẫn chỉ mục. |
+
+Bạn không cần gọi tên các công cụ này. Cứ nói bình thường — *"tìm giúp tôi mấy note về React"* — AI tự biết dùng cái nào.
+
+---
+
+## Ghi chú được lưu thế nào
+
+File `.md` nằm trong `VAULT_PATH/<category>/`, có phần thông tin ở đầu:
+
+```markdown
+---
+date: 2026-07-20
+category: 01-Fundamentals
+tags:
+  - react
+  - hooks
+source: chat-capture
+---
+# React hooks
+
+Nội dung ghi chú...
+```
+
+Đây là bản gốc, là nguồn sự thật. Mở bằng Obsidian, tìm bằng grep, đồng bộ, sao lưu — tùy bạn. Công cụ này không giữ khóa gì trên chúng.
+
+Bên cạnh đó có file `<VAULT_PATH>/.second-brain/index.db` — một file SQLite nhỏ lưu thông tin tóm tắt để tìm kiếm nhanh, khỏi phải đọc từng file. Nó là dữ liệu phái sinh: xóa đi thì tự tạo lại (nhưng sẽ rỗng — xem phần [Hạn chế](#hạn-chế-hiện-tại)).
+
+---
+
+## Đổi danh sách category
+
+Mặc định có 7 nhóm:
 
 ```
 01-Fundamentals  02-Work  03-Product-Thinking  04-Learning
 05-Career        06-Personal  07-Projects
 ```
 
-Change them in `.env` via `NOTE_CATEGORIES` (comma-separated), then `docker compose up -d --build`. Anything the AI picks that isn't on the list lands in `00-Inbox` instead of being rejected — so you sort it later rather than losing it.
+Muốn dùng nhóm của riêng bạn, thêm `NOTE_CATEGORIES` vào phần `env` trong cấu hình client:
 
-## Development
+```json
+"env": {
+  "VAULT_PATH": "/Users/ban/Documents/Notes",
+  "NOTE_CATEGORIES": "Nau-an,Du-lich,Cong-viec,Y-tuong"
+}
+```
 
-The project uses **pnpm**. Postgres must be running (`docker compose up -d postgres`) and `.env` filled in.
+Ngăn cách bằng dấu phẩy, không có khoảng trắng thừa. Sau đó khởi động lại client.
+
+Nếu AI chọn nhầm nhóm không có trong danh sách, ghi chú sẽ rơi vào `00-Inbox` chứ không bị từ chối — bạn sắp xếp lại sau, không mất gì.
+
+---
+
+## Khi gặp trục trặc
+
+**AI không thấy công cụ nào**
+Kiểm tra JSON có đúng cú pháp không (thiếu dấu phẩy, thừa dấu ngoặc là hỏng). Rồi khởi động lại client.
+
+**Báo lỗi liên quan `VAULT_PATH`**
+Đường dẫn phải đầy đủ từ gốc: `/Users/ban/Documents/Notes`, không phải `~/Documents/Notes` hay `./Notes`.
+
+**Lần đầu chạy rất lâu**
+Bình thường — `npx` đang tải package. Những lần sau nhanh hơn nhiều.
+
+**Ghi chú lưu rồi nhưng tìm không ra**
+Có thể chỉ mục bị lệch với thư mục. Xem phần dưới.
+
+---
+
+## Hạn chế hiện tại
+
+Nói thẳng để bạn biết trước:
+
+**Chỉ mục có thể lệch với thư mục.** Ghi chú được ghi ra file trước, rồi mới đưa vào chỉ mục. Nếu bước sau lỗi, file vẫn có nhưng tìm không thấy. Sửa file trực tiếp trong Obsidian cũng không cập nhật chỉ mục. Chưa có lệnh dựng lại chỉ mục — [rất hoan nghênh đóng góp](#đóng-góp).
+
+**Chỉ tìm được tiêu đề, chưa tìm trong nội dung.** `search_notes` khớp theo tiêu đề, category và tag. Chưa tìm được chữ nằm trong thân ghi chú.
+
+**Chữ có dấu phân biệt hoa thường.** Tìm tiêu đề tiếng Anh không phân biệt hoa thường, nhưng tiếng Việt có dấu thì có — hạn chế của SQLite.
+
+**Windows chạy chip ARM không dùng được.** Thư viện SQLite không có bản cho nền tảng đó. macOS (cả Intel lẫn Apple Silicon), Windows x64 và Linux đều chạy bình thường.
+
+---
+
+## Dành cho lập trình viên
+
+Cần [pnpm](https://pnpm.io). Chép `.env.example` thành `.env` rồi điền `VAULT_PATH`.
 
 ```bash
 pnpm install
-pnpm run start:dev        # watch mode
-
-pnpm run test             # unit tests
 pnpm run build
+pnpm run test
 pnpm run lint
 
-npx prisma migrate dev    # create + apply a migration
-npx prisma generate       # regenerate client after schema changes
+npx prisma migrate dev    # sau khi sửa prisma/schema.prisma
+npx prisma generate
 ```
 
-Try a tool without an AI client:
+Chạy tay để thử — server nói chuyện bằng JSON-RPC qua stdin/stdout:
 
 ```bash
-curl -X POST http://localhost:3000/mcp \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search_notes","arguments":{"keyword":"test"}}}'
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | VAULT_PATH=/tmp/test-vault node dist/src/main.js
 ```
 
-## Things worth knowing
+Một nguyên tắc bắt buộc khi sửa code: **không được ghi gì ra stdout.** Luồng đó dành riêng cho giao thức; một dòng `console.log` lạc là hỏng kết nối. Cần log thì dùng `console.error` (ghi ra stderr).
 
-**No authentication.** Anything that can reach port 3000 can read and write your vault. Fine on `localhost`; put it behind auth before exposing it anywhere else.
+---
 
-**File and database can drift.** A note is written to disk first, then indexed. If the database write fails afterwards, the file exists but won't show up in search. There's no reconciliation job yet — [contributions welcome](#contributing).
+## Đóng góp
 
-**Default Postgres password.** `.env.example` ships with `brainpass`. Change it if the database is reachable beyond your machine.
+Rất hoan nghênh issue và pull request. Những việc thực sự cần:
 
-## Contributing
+- Lệnh `reindex` dựng lại chỉ mục từ thư mục ghi chú
+- Tìm kiếm toàn văn trong nội dung
+- Viết test — tầng service hiện chưa có test nào
 
-Issues and pull requests are welcome. Some things that would genuinely help:
+---
 
-- Full-text or semantic search over note content (currently only titles are searchable)
-- A reconciliation command that rebuilds the index from the vault
-- Authentication for the MCP endpoint
-- Test coverage — the service layer has none
+## Giấy phép
 
-## License
-
-MIT — see [LICENSE](LICENSE).
+MIT — xem [LICENSE](LICENSE).

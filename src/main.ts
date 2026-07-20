@@ -1,9 +1,25 @@
+#!/usr/bin/env node
 import { NestFactory } from '@nestjs/core';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { AppModule } from './app.module';
-import * as express from "express"
+import { McpService } from './mcp/mcp.service';
+import { applyMigrations } from './prisma/migrate';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.use(express.json());
-  await app.listen(3000);
+  // stdout carries the JSON-RPC stream — anything else written there corrupts
+  // the protocol and the client drops the connection. Logs go to stderr only.
+  await applyMigrations();
+
+  const app = await NestFactory.createApplicationContext(AppModule, {
+    logger: false,
+  });
+  app.enableShutdownHooks();
+
+  const server = app.get(McpService).createServer();
+  await server.connect(new StdioServerTransport());
 }
-bootstrap();
+
+bootstrap().catch((error) => {
+  console.error('Failed to start second-brain-mcp:', error);
+  process.exit(1);
+});

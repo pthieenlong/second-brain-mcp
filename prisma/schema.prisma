@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider     = "prisma-client"
   output       = "../generated/prisma"
@@ -10,15 +8,17 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model Note {
-  id    String    @id @default(uuid())
-  title   String
-  category    String
-  tag   String[]
-  filePath String @unique
+  id        String   @id @default(uuid())
+  title     String
+  category  String
+  // SQLite has no array type. Tags are stored delimiter-wrapped (",a,b,")
+  // so a LIKE ",tag," matches whole tags only. Serialized in NoteIndexService.
+  tag       String   @default("")
+  filePath  String   @unique
   createdAt DateTime @default(now())
 
   @@index([category, createdAt])

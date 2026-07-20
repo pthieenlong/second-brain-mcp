@@ -1,18 +1,17 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { McpModule } from './mcp/mcp.module';
 import { ConfigModule } from '@nestjs/config';
-import { StorageService } from './storage/storage.service';
+import { McpModule } from './mcp/mcp.module';
 import { StorageModule } from './storage/storage.module';
-import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
-import { NoteIndexService } from './note-index/note-index.service';
 import { NoteIndexModule } from './note-index/note-index.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), McpModule, StorageModule, PrismaModule, NoteIndexModule],
-  controllers: [AppController],
-  providers: [AppService, StorageService, PrismaService, NoteIndexService],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    McpModule,
+    StorageModule,
+    PrismaModule,
+    NoteIndexModule,
+  ],
 })
-export class AppModule { }
+export class AppModule {}

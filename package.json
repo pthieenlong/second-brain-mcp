@@ -3,11 +3,30 @@
   "version": "0.1.0",
   "description": "An MCP server that lets AI assistants capture, search, and manage notes in a Markdown vault",
   "author": "pthieenlong",
-  "private": true,
   "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "notes",
+    "markdown",
+    "obsidian",
+    "second-brain"
+  ],
+  "bin": {
+    "second-brain-mcp": "dist/src/main.js"
+  },
+  "files": [
+    "dist",
+    "generated",
+    "prisma"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "packageManager": "pnpm@10.31.0",
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && chmod +x dist/src/main.js",
+    "prepublishOnly": "pnpm run build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -26,9 +45,8 @@
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
-    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/adapter-libsql": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "express": "^5.2.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^4.4.3"

@@ -1,13 +1,11 @@
 -- CreateTable
 CREATE TABLE "Note" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "title" TEXT NOT NULL,
     "category" TEXT NOT NULL,
-    "tag" TEXT[],
+    "tag" TEXT NOT NULL DEFAULT '',
     "filePath" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Note_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateIndex
