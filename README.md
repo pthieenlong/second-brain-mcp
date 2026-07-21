@@ -15,6 +15,7 @@ Bạn cứ trò chuyện với AI như thường. Khi có gì đáng lưu, bảo
 Bạn cần:
 
 - **Node.js phiên bản 20 trở lên.** Kiểm tra bằng cách mở Terminal (macOS) hoặc Command Prompt (Windows) rồi gõ `node --version`. Nếu báo lỗi hoặc số nhỏ hơn 20, tải tại [nodejs.org](https://nodejs.org).
+- **Git.** Gõ `git --version` để kiểm tra. Chưa có thì tải tại [git-scm.com](https://git-scm.com) — cần vì bản này cài trực tiếp từ GitHub.
 - **Một AI client hỗ trợ MCP** — Claude Desktop, Antigravity, Cursor, hoặc tương tự.
 
 ### Bước 2 — Chọn nơi lưu ghi chú
@@ -32,7 +33,7 @@ Mở file cấu hình MCP của client bạn dùng, thêm đoạn này:
   "mcpServers": {
     "second-brain": {
       "command": "npx",
-      "args": ["-y", "second-brain-mcp"],
+      "args": ["-y", "github:pthieenlong/second-brain-mcp"],
       "env": {
         "VAULT_PATH": "/Users/ban/Documents/Notes"
       }
@@ -49,7 +50,7 @@ Chỗ đặt file cấu hình tùy client — tìm trong tài liệu của clien
 
 ### Bước 4 — Khởi động lại client
 
-Đóng hẳn và mở lại AI client. Lần đầu chạy sẽ hơi chậm vì `npx` tải package về.
+Đóng hẳn và mở lại AI client. Lần đầu chạy sẽ mất một hai phút vì `npx` tải mã nguồn từ GitHub về và build. Những lần sau dùng bản đã cache nên nhanh.
 
 ### Bước 5 — Thử
 
@@ -131,7 +132,7 @@ Kiểm tra JSON có đúng cú pháp không (thiếu dấu phẩy, thừa dấu 
 Đường dẫn phải đầy đủ từ gốc: `/Users/ban/Documents/Notes`, không phải `~/Documents/Notes` hay `./Notes`.
 
 **Lần đầu chạy rất lâu**
-Bình thường — `npx` đang tải package. Những lần sau nhanh hơn nhiều.
+Bình thường — `npx` đang tải mã nguồn từ GitHub và build. Những lần sau nhanh hơn nhiều.
 
 **Ghi chú lưu rồi nhưng tìm không ra**
 Có thể chỉ mục bị lệch với thư mục. Xem phần dưới.
