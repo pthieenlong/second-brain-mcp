@@ -243,6 +243,38 @@ export class McpService {
       },
     );
 
+    server.registerTool(
+      'reindex_vault',
+      {
+        title: 'Reindex vault',
+        description:
+          'Quét lại toàn bộ file .md trong vault và dựng lại chỉ mục tìm kiếm từ đầu. ' +
+          'Dùng khi note được thêm/sửa trực tiếp bằng Obsidian, hoặc khi search không tìm ra note mà bạn biết là có.',
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const scanned = await this.storage.scanVault();
+          const count = await this.noteIndex.replaceAll(scanned);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Đã dựng lại chỉ mục từ ${count} note trong vault.`,
+              },
+            ],
+          };
+        } catch (error) {
+          console.error('Failed to reindex vault: ', error);
+          return {
+            content: [
+              { type: 'text', text: `Failed to reindex vault: ${error}` },
+            ],
+          };
+        }
+      },
+    );
+
     // stderr, never stdout — stdout is the JSON-RPC channel.
     console.error('MCP Server initialized!');
 

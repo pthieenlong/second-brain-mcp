@@ -66,6 +66,7 @@ If it worked, it'll confirm and you'll find a new `.md` file in your chosen fold
 | `get_note` | Read a note's full content. |
 | `update_note` | Edit a note. Changing title or category moves the file to its new path. |
 | `delete_note` | Remove a note from both the folder and the index. |
+| `reindex_vault` | Rescan the folder and rebuild the search index from scratch. |
 
 You never call these by name. Just talk normally — *"find my notes about React"* — and the AI picks the right one.
 
@@ -139,7 +140,7 @@ The index may have drifted from the folder. See below.
 
 Stated plainly so you know upfront:
 
-**The index can drift from the folder.** A note is written to disk first, then indexed. If the index write fails afterwards, the file exists but won't show up in search. Editing notes directly in Obsidian doesn't update the index either. There's no reindex command yet — [contributions welcome](#contributing).
+**The index can drift from the folder.** A note is written to disk first, then indexed. If the index write fails afterwards, the file exists but won't show up in search. Adding or editing notes directly in Obsidian doesn't update the index either. When in doubt, ask your AI to *"reindex my vault"* — it rescans every file and rebuilds the index from scratch.
 
 **Search covers titles, not content.** `search_notes` matches on title, category, and tags. Full-text search over note bodies isn't implemented.
 
@@ -178,8 +179,8 @@ One rule when working on this: **nothing may write to stdout.** That stream carr
 
 Issues and pull requests are welcome. Things that would genuinely help:
 
-- A `reindex` command that rebuilds the index from the vault
 - Full-text search over note content
+- Watching the vault so the index updates itself instead of needing a manual reindex
 - Test coverage — the service layer has none
 
 ---

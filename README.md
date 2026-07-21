@@ -68,6 +68,7 @@ Nếu thành công, nó sẽ báo đã lưu và bạn thấy file `.md` mới tr
 | `get_note` | Đọc toàn bộ nội dung một ghi chú. |
 | `update_note` | Sửa ghi chú. Đổi tiêu đề hoặc category thì file tự chuyển sang chỗ mới. |
 | `delete_note` | Xóa ghi chú khỏi cả thư mục lẫn chỉ mục. |
+| `reindex_vault` | Quét lại thư mục và dựng lại chỉ mục tìm kiếm từ đầu. |
 
 Bạn không cần gọi tên các công cụ này. Cứ nói bình thường — *"tìm giúp tôi mấy note về React"* — AI tự biết dùng cái nào.
 
@@ -141,7 +142,7 @@ Có thể chỉ mục bị lệch với thư mục. Xem phần dưới.
 
 Nói thẳng để bạn biết trước:
 
-**Chỉ mục có thể lệch với thư mục.** Ghi chú được ghi ra file trước, rồi mới đưa vào chỉ mục. Nếu bước sau lỗi, file vẫn có nhưng tìm không thấy. Sửa file trực tiếp trong Obsidian cũng không cập nhật chỉ mục. Chưa có lệnh dựng lại chỉ mục — [rất hoan nghênh đóng góp](#đóng-góp).
+**Chỉ mục có thể lệch với thư mục.** Ghi chú được ghi ra file trước, rồi mới đưa vào chỉ mục. Nếu bước sau lỗi, file vẫn có nhưng tìm không thấy. Sửa hoặc thêm note trực tiếp trong Obsidian cũng không tự cập nhật chỉ mục. Khi nghi ngờ lệch, bảo AI *"reindex vault giúp tôi"* — nó quét lại toàn bộ thư mục và dựng chỉ mục từ đầu.
 
 **Chỉ tìm được tiêu đề, chưa tìm trong nội dung.** `search_notes` khớp theo tiêu đề, category và tag. Chưa tìm được chữ nằm trong thân ghi chú.
 
@@ -180,8 +181,8 @@ Một nguyên tắc bắt buộc khi sửa code: **không được ghi gì ra st
 
 Rất hoan nghênh issue và pull request. Những việc thực sự cần:
 
-- Lệnh `reindex` dựng lại chỉ mục từ thư mục ghi chú
-- Tìm kiếm toàn văn trong nội dung
+- Tìm kiếm toàn văn trong nội dung note
+- Tự động cập nhật chỉ mục khi file trong vault thay đổi (thay vì phải reindex tay)
 - Viết test — tầng service hiện chưa có test nào
 
 ---

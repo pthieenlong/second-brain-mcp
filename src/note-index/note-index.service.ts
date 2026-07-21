@@ -125,4 +125,30 @@ export class NoteIndexService {
       throw error;
     }
   }
+
+  /**
+   * Replaces the whole index with what was found on disk. Existing ids are not
+   * preserved — the vault is the source of truth, and rebuilding from it is the
+   * only way to recover from drift (files edited in Obsidian, failed indexing,
+   * a deleted index.db).
+   */
+  async replaceAll(notes: IndexedNote[]): Promise<number> {
+    try {
+      await this.prisma.note.deleteMany();
+      for (const note of notes) {
+        await this.prisma.note.create({
+          data: {
+            title: note.title,
+            category: note.category,
+            tag: serializeTags(note.tags),
+            filePath: note.filePath,
+          },
+        });
+      }
+      return notes.length;
+    } catch (error) {
+      console.error('Failed to rebuild index: ', error);
+      throw error;
+    }
+  }
 }
