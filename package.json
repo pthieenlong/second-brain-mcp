@@ -34,6 +34,7 @@
   "packageManager": "pnpm@10.31.0",
   "scripts": {
     "build": "nest build && chmod +x dist/src/main.js",
+    "prepare": "prisma generate && nest build && chmod +x dist/src/main.js",
     "prepublishOnly": "pnpm run build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
