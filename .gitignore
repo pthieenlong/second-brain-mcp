@@ -65,3 +65,6 @@ CLAUDE.md
 # local SQLite dev database
 *.db
 *.db-journal
+
+# npm pack output
+*.tgz

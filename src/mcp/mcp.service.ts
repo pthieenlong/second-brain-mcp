@@ -2,7 +2,21 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Injectable } from '@nestjs/common';
 import { NoteIndexService } from 'src/note-index/note-index.service';
 import { INBOX, StorageService } from 'src/storage/storage.service';
+import { readFileSync } from 'fs';
+import * as path from 'path';
 import { z } from 'zod';
+
+// Read from package.json so the version reported to clients can't drift from
+// the published one. Path is relative to the built file: dist/src/mcp/ -> root.
+const VERSION = (
+  JSON.parse(
+    readFileSync(
+      path.join(__dirname, '..', '..', '..', 'package.json'),
+      'utf-8',
+    ),
+  ) as { version: string }
+).version;
+
 @Injectable()
 export class McpService {
   private server: McpServer;
@@ -14,7 +28,7 @@ export class McpService {
   createServer(): McpServer {
     const server = new McpServer({
       name: 'second-brain-mcp',
-      version: '1.0.0',
+      version: VERSION,
     });
     server.registerTool(
       'capture_note',

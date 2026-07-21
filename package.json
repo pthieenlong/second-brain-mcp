@@ -4,6 +4,14 @@
   "description": "An MCP server that lets AI assistants capture, search, and manage notes in a Markdown vault",
   "author": "pthieenlong",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pthieenlong/second-brain-mcp.git"
+  },
+  "homepage": "https://github.com/pthieenlong/second-brain-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/pthieenlong/second-brain-mcp/issues"
+  },
   "keywords": [
     "mcp",
     "model-context-protocol",
