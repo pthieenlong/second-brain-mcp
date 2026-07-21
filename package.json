@@ -1,5 +1,5 @@
 {
-  "name": "second-brain-mcp",
+  "name": "@pthieenlong/second-brain-mcp",
   "version": "0.1.0",
   "description": "An MCP server that lets AI assistants capture, search, and manage notes in a Markdown vault",
   "author": "pthieenlong",

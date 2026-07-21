@@ -13,7 +13,6 @@ You talk to your AI normally. When something is worth keeping, ask it to save: i
 ### Step 1 — What you need
 
 - **Node.js 20 or newer.** Check by opening Terminal (macOS) or Command Prompt (Windows) and running `node --version`. If that errors or shows below 20, install from [nodejs.org](https://nodejs.org).
-- **Git.** Run `git --version` to check; install from [git-scm.com](https://git-scm.com) if missing — this version installs straight from GitHub.
 - **An MCP-capable AI client** — Claude Desktop, Antigravity, Cursor, or similar.
 
 ### Step 2 — Pick where notes live
@@ -31,7 +30,7 @@ Open your client's MCP configuration file and add:
   "mcpServers": {
     "second-brain": {
       "command": "npx",
-      "args": ["-y", "github:pthieenlong/second-brain-mcp"],
+      "args": ["-y", "@pthieenlong/second-brain-mcp"],
       "env": {
         "VAULT_PATH": "/Users/you/Documents/Notes"
       }
@@ -48,7 +47,7 @@ Where that config file lives depends on your client — check its documentation 
 
 ### Step 4 — Restart the client
 
-Quit the AI client completely and reopen it. The first launch takes a minute or two while `npx` fetches the source from GitHub and builds it. Later launches use the cached build.
+Quit the AI client completely and reopen it. The first launch is slow while `npx` downloads the package; later launches use the cache.
 
 ### Step 5 — Try it
 
@@ -130,7 +129,7 @@ Check your JSON is valid — a missing comma or stray brace breaks it silently. 
 The path must be absolute: `/Users/you/Documents/Notes`, not `~/Documents/Notes` or `./Notes`.
 
 **First run takes forever**
-Normal — `npx` is fetching the source from GitHub and building it. Later runs are much faster.
+Normal — `npx` is downloading the package. Later runs are much faster.
 
 **Notes saved but search finds nothing**
 The index may have drifted from the folder. See below.
