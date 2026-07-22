@@ -14,7 +14,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export const INBOX = '00-Inbox';
-
+export const CANVAS_DIR = '08-Canvas';
 export interface NoteInput {
   title: string;
   content: string;
@@ -99,6 +99,20 @@ export class StorageService {
     const body = `${this.buildFrontmatter(input, actualCategory)}# ${input.title}\n\n${input.content}\n`;
     await fs.writeFile(filePath, body, 'utf-8');
     return filePath;
+  }
+
+  async saveCanvas(title: string, json: string) {
+    const slug = slugify(title);
+    const filePath = path.join(this.vaultPath, CANVAS_DIR, `${slug}.canvas`);
+
+    await fs.mkdir(path.dirname(filePath), { recursive: true })
+    await fs.writeFile(filePath, json, 'utf-8')
+
+    return filePath
+  }
+
+  get root(): string {
+    return path.resolve(this.vaultPath);
   }
 
   async readNote(filePath: string): Promise<string> {
@@ -235,4 +249,13 @@ function parseFrontmatter(raw: string): Frontmatter {
 function firstHeading(raw: string): string | null {
   const match = /^#\s+(.+)$/m.exec(raw);
   return match ? match[1].trim() : null;
+}
+
+function slugify(title: string): string {
+  return (
+    title.toLocaleLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 50) || 'untitled'
+  )
 }

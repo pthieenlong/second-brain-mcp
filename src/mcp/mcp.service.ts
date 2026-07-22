@@ -5,6 +5,8 @@ import { INBOX, StorageService } from 'src/storage/storage.service';
 import { readFileSync } from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
+import { FlowService } from 'src/flow/flow.service';
+import { FlowNode } from 'src/flow/flow.type';
 
 // Read from package.json so the version reported to clients can't drift from
 // the published one. Path is relative to the built file: dist/src/mcp/ -> root.
@@ -23,7 +25,8 @@ export class McpService {
   constructor(
     private readonly storage: StorageService,
     private readonly noteIndex: NoteIndexService,
-  ) {}
+    private readonly flow: FlowService
+  ) { }
 
   createServer(): McpServer {
     const server = new McpServer({
@@ -275,6 +278,95 @@ export class McpService {
       },
     );
 
+    server.registerTool(
+      'export_flow', {
+      title: 'Export flow',
+      description: 'Vẽ sơ đồ luồng từ các note trong second brain. Bạn tự quyết node nào nối node nào ' +
+        'sau khi đọc note bằng search_notes/get_note — tool này chỉ lo dựng file đúng định dạng. ' +
+        'format "mermaid" trả về đoạn text để chèn thẳng vào note; ' +
+        'format "canvas" ghi file .canvas mở được bằng Obsidian Canvas.',
+      inputSchema: {
+        format: z.enum(['mermaid', 'canvas'])
+          .describe('Định dạng xuất ra'),
+        title: z.string().describe('Tiêu đề sơ đồ'),
+        nodes: z.array(z.object({
+          id: z.string().describe('Định danh node, dùng trong edges'),
+          label: z.string().describe('Nhãn hiển thị'),
+          noteId: z.string().optional().describe('id note (từ search_notes) nếu node trỏ tới note'),
+          text: z.string().optional().describe('Ghi chú thêm, dùng khi node không gắn note')
+        })).describe('Danh sách node'),
+        edges: z.array(z.object({
+          from: z.string(),
+          to: z.string(),
+          label: z.string().optional()
+        })).describe('Danh sách cạnh nối giữa các node')
+      },
+    },
+      async ({ format, title, nodes, edges }) => {
+        try {
+          const resolved: FlowNode[] = [];
+          for (const n of nodes) {
+            if (!n.noteId) {
+              resolved.push({ id: n.id, label: n.label, text: n.text })
+              continue;
+            }
+            const note = await this.noteIndex.findById(n.noteId);
+            if (!note) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: `Không tìm thấy note với id ${n.noteId} (node "${n.id}")`,
+                  },
+                ],
+              };
+            }
+
+            resolved.push({
+              id: n.id,
+              label: n.label,
+              filePath: note.filePath,
+              text: n.text
+            })
+          }
+
+          const ids = new Set(resolved.map((n) => n.id));
+          const dangling = edges.find(
+            (e) => !ids.has(e.from) || !ids.has(e.to)
+          );
+
+          if (dangling) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Edge trỏ tới node không tồn tại: ${dangling.from} -> ${dangling.to}`,
+                }
+              ]
+            }
+          }
+
+          const result = await this.flow.export(
+            { title, nodes: resolved, edges },
+            format
+          );
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: result.filePath ? `Đã ghi sơ đồ tại ${result.filePath}` : result.content
+              }
+            ]
+          }
+        } catch (error) {
+          console.error('Failed to export flow: ', error);
+          return {
+            content: [{ type: 'text', text: `Failed to export flow: ${error}` }],
+          }
+        }
+      }
+    )
     // stderr, never stdout — stdout is the JSON-RPC channel.
     console.error('MCP Server initialized!');
 
