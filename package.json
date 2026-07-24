@@ -1,6 +1,9 @@
 {
   "name": "@pthieenlong/second-brain-mcp",
   "version": "0.2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "An MCP server that lets AI assistants capture, search, and manage notes in a Markdown vault",
   "author": "pthieenlong",
   "license": "MIT",

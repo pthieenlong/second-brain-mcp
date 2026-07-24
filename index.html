@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Second Brain MCP — AI ghi chú vào vault Markdown của bạn</title>
+<meta name="description" content="MCP server giúp AI capture, tìm và quản lý ghi chú trong một thư mục Markdown kiểu Obsidian. File .md thường, nằm trên ổ cứng của bạn.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBFAF7;
+    --paper-sunk:#F3F1EB;
+    --ink:#14181F;
+    --graphite:#5C6470;
+    --rule:#DFDBD1;
+    --rule-strong:#C8C2B4;
+    --vault:#2F6F4E;
+    --vault-soft:#EAF1EC;
+    --amber:#8A6D3B;
+
+    --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+    --measure:44rem;
+    --gutter:clamp(1.25rem,5vw,2.5rem);
+    --s-1:.5rem; --s-2:1rem; --s-3:1.5rem; --s-4:2rem; --s-6:3rem; --s-8:4.5rem; --s-10:6.5rem;
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font:400 17px/1.65 var(--sans);
+    font-feature-settings:"kern","liga";
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--vault);color:#fff}
+
+  a{color:inherit;text-decoration-color:var(--rule-strong);text-underline-offset:3px}
+  a:hover{text-decoration-color:var(--vault)}
+  :focus-visible{outline:2px solid var(--vault);outline-offset:3px;border-radius:2px}
+
+  code,kbd,samp,pre{font-family:var(--mono)}
+
+  .wrap{max-width:var(--measure);margin-inline:auto;padding-inline:var(--gutter)}
+  .wide{max-width:64rem;margin-inline:auto;padding-inline:var(--gutter)}
+
+  /* ---------- masthead ---------- */
+  .masthead{
+    border-bottom:1px solid var(--rule);
+    background:color-mix(in srgb,var(--paper) 88%,transparent);
+    backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:20;
+  }
+  .masthead-in{
+    display:flex;align-items:center;justify-content:space-between;gap:var(--s-2);
+    min-height:56px;
+  }
+  .wordmark{
+    font-family:var(--mono);font-weight:700;font-size:.8125rem;letter-spacing:.06em;
+    text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:.5rem;
+  }
+  .wordmark .dot{width:7px;height:7px;background:var(--vault);border-radius:50%;flex:none}
+  .masthead nav{display:flex;align-items:center;gap:1.25rem;font-size:.875rem}
+  .masthead nav a{text-decoration:none;color:var(--graphite);padding:.5rem 0}
+  .masthead nav a:hover{color:var(--ink)}
+  .ver{
+    font-family:var(--mono);font-size:.75rem;color:var(--graphite);
+    border:1px solid var(--rule);border-radius:2px;padding:.15rem .4rem;
+  }
+  @media (max-width:640px){ .masthead nav a.hide-sm{display:none} }
+
+  /* ---------- hero ---------- */
+  .hero{padding-block:var(--s-8) var(--s-6)}
+  .eyebrow{
+    font-family:var(--mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--vault);margin:0 0 var(--s-3);
+  }
+  h1{
+    font-size:clamp(2rem,5.2vw,3.1rem);line-height:1.1;letter-spacing:-.022em;
+    font-weight:600;margin:0 0 var(--s-3);max-width:20ch;
+  }
+  .lede{font-size:1.125rem;color:var(--graphite);margin:0;max-width:52ch}
+  .lede strong{color:var(--ink);font-weight:500}
+
+  .hero-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:var(--s-4);align-items:center}
+  .btn{
+    display:inline-flex;align-items:center;gap:.5rem;
+    min-height:44px;padding:.6rem 1.1rem;border-radius:3px;
+    font:500 .9375rem/1 var(--sans);text-decoration:none;cursor:pointer;
+    transition:background-color .2s ease,border-color .2s ease,color .2s ease;
+  }
+  .btn-primary{background:var(--vault);color:#fff;border:1px solid var(--vault)}
+  .btn-primary:hover{background:#255C40;border-color:#255C40}
+  .btn-ghost{border:1px solid var(--rule-strong);color:var(--ink);background:transparent}
+  .btn-ghost:hover{border-color:var(--ink);background:var(--paper-sunk)}
+  .btn svg{width:16px;height:16px;flex:none}
+
+  /* ---------- signature: exchange ---------- */
+  .exchange{
+    display:grid;grid-template-columns:1fr;gap:0;
+    border:1px solid var(--rule);border-radius:4px;overflow:hidden;
+    background:#fff;margin-top:var(--s-6);
+  }
+  /* Cột trái ngắn hơn cột phải, nên để nội dung tự quyết chiều cao thay vì kéo giãn. */
+  @media (min-width:860px){
+    .exchange{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}
+    .panel{height:100%}
+  }
+
+  /* min-width:0 — nếu không, flex item co theo max-content và làm tràn ngang cả trang. */
+  .panel{padding:var(--s-3) var(--s-3) var(--s-4);display:flex;flex-direction:column;min-width:0}
+  .panel > *{min-width:0}
+  .panel + .panel{border-top:1px solid var(--rule)}
+  @media (min-width:860px){
+    .panel + .panel{border-top:0;border-left:1px solid var(--rule)}
+  }
+  .panel-label{
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    font-family:var(--mono);font-size:.6875rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--graphite);padding-bottom:.85rem;margin-bottom:var(--s-3);
+    border-bottom:1px solid var(--rule);
+  }
+  .panel-label .side{color:var(--graphite)}
+
+  .bubble{
+    background:var(--paper-sunk);border-radius:3px;padding:.8rem 1rem;
+    font-size:.9375rem;line-height:1.55;
+  }
+  .bubble + .bubble{margin-top:.6rem}
+  .bubble-you{border-left:2px solid var(--ink)}
+  .bubble-ai{border-left:2px solid var(--vault);background:var(--vault-soft)}
+  .who{
+    font-family:var(--mono);font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--graphite);display:block;margin-bottom:.3rem;
+  }
+  .toolcall{
+    margin-top:.6rem;font-family:var(--mono);font-size:.78rem;color:var(--graphite);
+    display:flex;align-items:center;gap:.5rem;
+  }
+  .toolcall .tick{color:var(--vault);font-weight:700}
+
+  /* Khoảng thời gian trôi qua giữa hai lượt trò chuyện. */
+  .gap{
+    display:flex;align-items:center;gap:.75rem;margin:1.1rem 0;
+    font-family:var(--mono);font-size:.6875rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--graphite);
+  }
+  .gap::before,.gap::after{content:"";flex:1;height:1px;background:var(--rule)}
+
+  .file{font-family:var(--mono);font-size:.82rem;line-height:1.75;overflow-x:auto}
+  .file pre{margin:0;white-space:pre;min-width:max-content}
+  .fm-rule{color:var(--rule-strong)}
+  .fm-key{color:var(--amber)}
+  .fm-val{color:var(--ink)}
+  .md-h{color:var(--ink);font-weight:700}
+  .md-body{color:var(--graphite)}
+  .path{
+    font-family:var(--mono);font-size:.72rem;color:var(--graphite);
+    margin-top:var(--s-3);padding-top:.75rem;border-top:1px dashed var(--rule);
+    overflow-x:auto;white-space:nowrap;
+  }
+
+  /* ---------- sections ---------- */
+  section{border-top:1px solid var(--rule)}
+  section.plain{border-top:0}
+  .sec{padding-block:var(--s-8)}
+  h2{
+    font-size:clamp(1.5rem,3vw,1.875rem);line-height:1.2;letter-spacing:-.015em;
+    font-weight:600;margin:0 0 var(--s-2);
+  }
+  .sec-note{color:var(--graphite);margin:0 0 var(--s-4);max-width:56ch}
+  p{margin:0 0 var(--s-2)}
+
+  /* ---------- tools table ---------- */
+  .table-scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;background:#fff}
+  table{border-collapse:collapse;width:100%;min-width:34rem}
+  caption{
+    text-align:left;font-family:var(--mono);font-size:.6875rem;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--graphite);padding:.85rem 1rem;
+    border-bottom:1px solid var(--rule);
+  }
+  th,td{text-align:left;padding:.85rem 1rem;border-bottom:1px solid var(--rule);vertical-align:top}
+  tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
+  tbody th{
+    font-family:var(--mono);font-size:.85rem;font-weight:500;color:var(--ink);
+    white-space:nowrap;width:1%;
+  }
+  td{font-size:.9375rem;color:var(--graphite)}
+  tbody tr{transition:background-color .2s ease}
+  tbody tr:hover{background:var(--paper-sunk)}
+
+  /* ---------- steps ---------- */
+  ol.steps{list-style:none;margin:0;padding:0;counter-reset:step}
+  ol.steps{max-width:var(--measure)}
+  ol.steps > li{
+    counter-increment:step;position:relative;
+    padding-left:2.75rem;padding-bottom:var(--s-4);
+  }
+  ol.steps > li::before{
+    content:counter(step,decimal-leading-zero);
+    position:absolute;left:0;top:.1rem;
+    font-family:var(--mono);font-size:.8125rem;font-weight:700;color:var(--vault);
+  }
+  ol.steps > li::after{
+    content:"";position:absolute;left:.62rem;top:1.7rem;bottom:.3rem;width:1px;background:var(--rule);
+  }
+  ol.steps > li:last-child{padding-bottom:0}
+  ol.steps > li:last-child::after{display:none}
+  ol.steps h3{font-size:1.0625rem;font-weight:600;margin:0 0 .35rem;letter-spacing:-.005em}
+  ol.steps p{font-size:.9375rem;color:var(--graphite);margin:0 0 .75rem}
+
+  /* ---------- code block ---------- */
+  .code{
+    position:relative;background:#fff;border:1px solid var(--rule);border-radius:4px;
+    margin:0 0 var(--s-2);
+  }
+  .code-bar{
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    padding:.5rem .5rem .5rem .9rem;border-bottom:1px solid var(--rule);
+  }
+  .code-bar span{
+    font-family:var(--mono);font-size:.6875rem;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--graphite);
+  }
+  .code pre{
+    margin:0;padding:.9rem;overflow-x:auto;
+    font-size:.8125rem;line-height:1.7;color:var(--ink);
+  }
+  .copy{
+    font-family:var(--mono);font-size:.6875rem;letter-spacing:.05em;text-transform:uppercase;
+    background:transparent;border:1px solid var(--rule);border-radius:2px;color:var(--graphite);
+    padding:.4rem .6rem;min-height:32px;cursor:pointer;
+    transition:border-color .2s ease,color .2s ease,background-color .2s ease;
+  }
+  .copy:hover{border-color:var(--vault);color:var(--vault)}
+  .copy[data-done="1"]{color:var(--vault);border-color:var(--vault);background:var(--vault-soft)}
+  .k{color:var(--amber)}
+  .s{color:var(--vault)}
+  .c{color:var(--graphite)}
+
+  .callout{
+    border-left:2px solid var(--rule-strong);padding:.15rem 0 .15rem 1rem;
+    font-size:.9375rem;color:var(--graphite);margin:var(--s-2) 0 0;
+  }
+  .callout strong{color:var(--ink);font-weight:500}
+
+  /* ---------- vault tree ---------- */
+  .tree-grid{display:grid;gap:var(--s-4);grid-template-columns:1fr}
+  @media (min-width:760px){ .tree-grid{grid-template-columns:minmax(0,20rem) minmax(0,1fr);gap:var(--s-6)} }
+  .tree{
+    font-family:var(--mono);font-size:.8125rem;line-height:1.9;
+    background:#fff;border:1px solid var(--rule);border-radius:4px;padding:1rem;
+    overflow-x:auto;
+  }
+  .tree pre{margin:0;white-space:pre}
+  .tree .dir{color:var(--ink);font-weight:500}
+  .tree .branch{color:var(--rule-strong)}
+  .tree .meta{color:var(--graphite)}
+
+  /* ---------- limits ---------- */
+  dl.limits{margin:0;display:grid;gap:var(--s-3);max-width:var(--measure)}
+  dl.limits dt{font-weight:600;font-size:1rem;margin-bottom:.2rem}
+  dl.limits dd{margin:0;color:var(--graphite);font-size:.9375rem}
+  dl.limits > div{border-left:2px solid var(--rule);padding-left:1rem}
+
+  .inline{
+    font-family:var(--mono);font-size:.85em;background:var(--paper-sunk);
+    border:1px solid var(--rule);border-radius:2px;padding:.06em .32em;
+  }
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--rule);padding-block:var(--s-4);margin-top:var(--s-8)}
+  .foot-in{
+    display:flex;flex-wrap:wrap;gap:var(--s-2) var(--s-3);
+    align-items:center;justify-content:space-between;
+    font-size:.875rem;color:var(--graphite);
+  }
+  .foot-in a{text-decoration:none}
+  .foot-in a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+  .foot-links{display:flex;gap:1.25rem;flex-wrap:wrap}
+
+  /* ---------- motion ---------- */
+  .rise{opacity:0;transform:translateY(10px);transition:opacity .5s ease-out,transform .5s ease-out}
+  .rise.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+    .rise{opacity:1;transform:none}
+    html{scroll-behavior:auto}
+  }
+  html{scroll-behavior:smooth}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wide masthead-in">
+    <a class="wordmark" href="#top"><span class="dot" aria-hidden="true"></span>Second Brain MCP</a>
+    <nav aria-label="Mục chính">
+      <a href="#tools" class="hide-sm">Công cụ</a>
+      <a href="#install">Cài đặt</a>
+      <a href="#vault" class="hide-sm">Vault</a>
+      <span class="ver">v0.2.0</span>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="plain">
+    <div class="wide hero">
+      <p class="eyebrow">MCP server · Node 20+ · MIT</p>
+      <h1>AI ghi chú giùm bạn. File vẫn là của bạn.</h1>
+      <p class="lede">
+        Cứ trò chuyện như thường. Có gì đáng lưu thì bảo AI lưu lại — nó tự chọn category, tự gắn tag,
+        tự ghi ra một file <strong>.md</strong> trong thư mục bạn chỉ định. Không có định dạng riêng, không khóa dữ liệu:
+        gỡ công cụ này đi, ghi chú vẫn đọc được bằng Obsidian hay bất cứ trình soạn thảo nào.
+      </p>
+
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#install">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          Cài trong 4 bước
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/pthieenlong/second-brain-mcp">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"/></svg>
+          Xem trên GitHub
+        </a>
+      </div>
+
+      <!-- SIGNATURE: nói một câu → ra một file -->
+      <div class="exchange rise">
+        <div class="panel">
+          <p class="panel-label"><span>Bạn nói trong chat</span><span class="side" aria-hidden="true">Claude · Cursor · Antigravity</span></p>
+          <div class="bubble bubble-you">
+            <span class="who">Bạn</span>
+            Lưu note này vào second brain: useEffect chạy sau mỗi lần render, cleanup chạy trước lần chạy kế tiếp.
+          </div>
+          <div class="bubble bubble-ai">
+            <span class="who">AI</span>
+            Đã lưu vào <strong>01-Fundamentals</strong>, gắn tag <code>react</code>, <code>hooks</code>.
+            <div class="toolcall"><span class="tick" aria-hidden="true">✓</span> capture_note</div>
+          </div>
+
+          <p class="gap" aria-hidden="true">ba tuần sau</p>
+
+          <div class="bubble bubble-you">
+            <span class="who">Bạn</span>
+            Hồi trước tôi ghi gì về hooks nhỉ?
+          </div>
+          <div class="bubble bubble-ai">
+            <span class="who">AI</span>
+            Có 3 note gắn tag <code>hooks</code>. Note về useEffect nói cleanup chạy trước lần chạy kế tiếp.
+            <div class="toolcall"><span class="tick" aria-hidden="true">✓</span> search_notes → get_note</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <p class="panel-label"><span>Ổ cứng của bạn</span><span class="side" aria-hidden="true">Markdown</span></p>
+          <div class="file">
+<pre><span class="fm-rule">---</span>
+<span class="fm-key">date:</span> <span class="fm-val">2026-07-23</span>
+<span class="fm-key">category:</span> <span class="fm-val">01-Fundamentals</span>
+<span class="fm-key">tags:</span>
+  <span class="fm-rule">-</span> <span class="fm-val">react</span>
+  <span class="fm-rule">-</span> <span class="fm-val">hooks</span>
+<span class="fm-key">source:</span> <span class="fm-val">chat-capture</span>
+<span class="fm-rule">---</span>
+<span class="md-h"># useEffect</span>
+
+<span class="md-body">useEffect chạy sau mỗi lần render,
+cleanup chạy trước lần chạy kế tiếp.</span></pre>
+          </div>
+          <p class="path">~/Documents/Notes/01-Fundamentals/useEffect.md</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOOLS -->
+  <section id="tools">
+    <div class="wide sec">
+      <h2>Bảy công cụ AI được phép dùng</h2>
+      <p class="sec-note">
+        Bạn không cần gọi tên chúng. Cứ nói bình thường — <em>“tìm giúp tôi mấy note về React”</em> —
+        AI tự chọn công cụ phù hợp.
+      </p>
+
+      <div class="table-scroll rise">
+        <table>
+          <caption>Tools exposed qua MCP</caption>
+          <thead>
+            <tr><th scope="col">Tên</th><th scope="col">Làm gì</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">capture_note</th><td>Lưu ghi chú mới. AI tự phân loại category và gắn tag theo nội dung.</td></tr>
+            <tr><th scope="row">search_notes</th><td>Tìm theo từ khóa tiêu đề, category hoặc tag. Trả về metadata kèm id.</td></tr>
+            <tr><th scope="row">get_note</th><td>Đọc toàn bộ nội dung một ghi chú theo id.</td></tr>
+            <tr><th scope="row">update_note</th><td>Sửa ghi chú. Đổi tiêu đề hoặc category thì file tự chuyển sang chỗ mới.</td></tr>
+            <tr><th scope="row">delete_note</th><td>Xóa ghi chú khỏi cả thư mục lẫn chỉ mục.</td></tr>
+            <tr><th scope="row">reindex_vault</th><td>Quét lại thư mục và dựng lại chỉ mục tìm kiếm từ đầu.</td></tr>
+            <tr><th scope="row">export_flow</th><td>Vẽ sơ đồ luồng từ các note — xuất Mermaid để chèn vào note, hoặc file <span class="inline">.canvas</span> mở bằng Obsidian Canvas.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install">
+    <div class="wide sec">
+      <h2>Cài đặt</h2>
+      <p class="sec-note">Không cần clone repo, không cần build. <span class="inline">npx</span> tự tải package khi client khởi động.</p>
+
+      <ol class="steps">
+        <li>
+          <h3>Kiểm tra Node.js</h3>
+          <p>Cần phiên bản 20 trở lên. Mở Terminal (macOS) hoặc Command Prompt (Windows) và gõ:</p>
+          <div class="code">
+            <div class="code-bar"><span>terminal</span><button class="copy" type="button" data-copy="node --version">Copy</button></div>
+            <pre>node --version</pre>
+          </div>
+          <p class="callout">Báo lỗi hoặc số nhỏ hơn 20 thì tải tại <a href="https://nodejs.org">nodejs.org</a>.</p>
+        </li>
+
+        <li>
+          <h3>Chọn nơi lưu ghi chú</h3>
+          <p>
+            Một thư mục bất kỳ, ví dụ <span class="inline">/Users/ban/Documents/Notes</span>.
+            Chưa tồn tại cũng được — nó sẽ tự tạo. Đang dùng Obsidian thì trỏ thẳng vào vault sẵn có.
+          </p>
+        </li>
+
+        <li>
+          <h3>Thêm vào cấu hình MCP của client</h3>
+          <p>Mở file cấu hình MCP rồi thêm khối này. Chỗ đặt file tùy client — tìm mục “MCP servers” trong tài liệu của họ.</p>
+          <div class="code">
+            <div class="code-bar">
+              <span>mcp config · json</span>
+              <button class="copy" type="button" data-copy='{
+  "mcpServers": {
+    "second-brain": {
+      "command": "npx",
+      "args": ["-y", "@pthieenlong/second-brain-mcp"],
+      "env": {
+        "VAULT_PATH": "/Users/ban/Documents/Notes"
+      }
+    }
+  }
+}'>Copy</button>
+            </div>
+<pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"second-brain"</span>: {
+      <span class="k">"command"</span>: <span class="s">"npx"</span>,
+      <span class="k">"args"</span>: [<span class="s">"-y"</span>, <span class="s">"@pthieenlong/second-brain-mcp"</span>],
+      <span class="k">"env"</span>: {
+        <span class="k">"VAULT_PATH"</span>: <span class="s">"/Users/ban/Documents/Notes"</span>
+      }
+    }
+  }
+}</pre>
+          </div>
+          <p class="callout">
+            <strong>Đường dẫn phải đầy đủ từ gốc.</strong> Dùng <span class="inline">~/Documents/Notes</span> hay
+            <span class="inline">./Notes</span> sẽ lỗi. Nếu file đã có sẵn <span class="inline">mcpServers</span>,
+            chỉ thêm khóa <span class="inline">"second-brain"</span> vào bên trong, đừng ghi đè cả khối.
+          </p>
+        </li>
+
+        <li>
+          <h3>Khởi động lại client rồi thử</h3>
+          <p>Đóng hẳn và mở lại. Nhắn: <em>“Lưu note này vào second brain: hôm nay học được cách dùng React hooks”</em> — thành công thì bạn thấy file <span class="inline">.md</span> mới trong thư mục vừa chọn.</p>
+          <p class="callout">Lần chạy đầu hơi chậm vì <span class="inline">npx</span> đang tải package. Những lần sau dùng bản cache nên nhanh.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- VAULT -->
+  <section id="vault">
+    <div class="wide sec">
+      <h2>Ghi chú nằm ở đâu</h2>
+      <p class="sec-note">
+        Mỗi note là một file <span class="inline">.md</span> trong <span class="inline">VAULT_PATH/&lt;category&gt;/</span>.
+        Đây là bản gốc, là nguồn sự thật — mở bằng Obsidian, tìm bằng grep, đồng bộ, sao lưu đều được.
+      </p>
+
+      <div class="tree-grid">
+        <div class="tree rise" role="img" aria-label="Cây thư mục vault: bảy category mặc định từ 01-Fundamentals đến 07-Projects, cùng 00-Inbox, 08-Canvas và thư mục ẩn .second-brain chứa index.db">
+<pre><span class="dir">Notes/</span>
+<span class="branch">├─</span> <span class="dir">00-Inbox/</span>          <span class="meta">chưa phân loại</span>
+<span class="branch">├─</span> <span class="dir">01-Fundamentals/</span>
+<span class="branch">├─</span> <span class="dir">02-Work/</span>
+<span class="branch">├─</span> <span class="dir">03-Product-Thinking/</span>
+<span class="branch">├─</span> <span class="dir">04-Learning/</span>
+<span class="branch">├─</span> <span class="dir">05-Career/</span>
+<span class="branch">├─</span> <span class="dir">06-Personal/</span>
+<span class="branch">├─</span> <span class="dir">07-Projects/</span>
+<span class="branch">├─</span> <span class="dir">08-Canvas/</span>         <span class="meta">export_flow</span>
+<span class="branch">└─</span> <span class="dir">.second-brain/</span>
+   <span class="branch">└─</span> index.db        <span class="meta">chỉ mục</span></pre>
+        </div>
+
+        <div>
+          <h3 style="font-size:1.0625rem;font-weight:600;margin:0 0 .4rem;">Đổi danh sách category</h3>
+          <p style="font-size:.9375rem;color:var(--graphite);">
+            Bảy nhóm trên là mặc định. Muốn dùng nhóm riêng, thêm <span class="inline">NOTE_CATEGORIES</span> vào
+            <span class="inline">env</span> rồi khởi động lại client:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span>env</span>
+              <button class="copy" type="button" data-copy='"NOTE_CATEGORIES": "Nau-an,Du-lich,Cong-viec,Y-tuong"'>Copy</button>
+            </div>
+<pre><span class="k">"NOTE_CATEGORIES"</span>: <span class="s">"Nau-an,Du-lich,Cong-viec,Y-tuong"</span></pre>
+          </div>
+          <p class="callout">
+            Ngăn cách bằng dấu phẩy, không khoảng trắng thừa. AI chọn nhầm nhóm không có trong danh sách thì
+            note rơi vào <span class="inline">00-Inbox</span> chứ không bị từ chối — bạn sắp xếp lại sau, không mất gì.
+          </p>
+          <p style="font-size:.9375rem;color:var(--graphite);margin-top:var(--s-3);">
+            File <span class="inline">index.db</span> chỉ là dữ liệu phái sinh: một SQLite nhỏ lưu metadata để tìm nhanh,
+            khỏi phải đọc từng file. Xóa đi thì nó tự tạo lại — chạy <span class="inline">reindex_vault</span> để nạp đầy.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIMITS -->
+  <section id="limits">
+    <div class="wide sec">
+      <h2>Chưa làm được gì</h2>
+      <p class="sec-note">Nói thẳng trước khi bạn cài, để không mất thời gian đoán.</p>
+
+      <dl class="limits">
+        <div>
+          <dt>Chỉ mục có thể lệch với thư mục</dt>
+          <dd>
+            Note được ghi ra file trước, rồi mới đưa vào chỉ mục. Bước sau lỗi thì file vẫn còn nhưng tìm không thấy.
+            Sửa note trực tiếp trong Obsidian cũng không tự cập nhật. Nghi ngờ lệch thì bảo AI
+            <em>“reindex vault giúp tôi”</em>.
+          </dd>
+        </div>
+        <div>
+          <dt>Chỉ tìm được tiêu đề, chưa tìm trong nội dung</dt>
+          <dd><span class="inline">search_notes</span> khớp theo tiêu đề, category và tag. Chữ nằm trong thân note thì chưa tìm được.</dd>
+        </div>
+        <div>
+          <dt>Chữ tiếng Việt có dấu phân biệt hoa thường</dt>
+          <dd>Tiêu đề tiếng Anh tìm không phân biệt hoa thường, nhưng tiếng Việt có dấu thì có — hạn chế của SQLite.</dd>
+        </div>
+        <div>
+          <dt>Chưa có bản dựng cho Windows ARM64</dt>
+          <dd>Driver SQLite (libsql) chưa phát hành binary cho nền tảng này.</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack">
+    <div class="wide sec">
+      <h2>Dựng bằng gì</h2>
+      <p class="sec-note">
+        NestJS chạy trên <a href="https://modelcontextprotocol.io">Model Context Protocol</a> SDK, nói JSON-RPC qua stdio.
+        Metadata note lưu trong SQLite qua Prisma 7 với adapter libsql — ship sẵn binary theo nền tảng,
+        nên lúc cài không phải biên dịch gì.
+      </p>
+      <div class="code" style="max-width:var(--measure);">
+        <div class="code-bar">
+          <span>chạy thử không cần client</span>
+          <button class="copy" type="button" data-copy="echo '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}' | VAULT_PATH=/tmp/test-vault npx -y @pthieenlong/second-brain-mcp">Copy</button>
+        </div>
+<pre><span class="c">$</span> echo <span class="s">'{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</span> \
+  | <span class="k">VAULT_PATH</span>=/tmp/test-vault npx -y @pthieenlong/second-brain-mcp</pre>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wide foot-in">
+    <p style="margin:0;">Second Brain MCP · MIT · <span style="font-family:var(--mono);font-size:.8125rem;">@pthieenlong/second-brain-mcp</span></p>
+    <div class="foot-links">
+      <a href="https://github.com/pthieenlong/second-brain-mcp">GitHub</a>
+      <a href="https://www.npmjs.com/package/@pthieenlong/second-brain-mcp">npm</a>
+      <a href="https://github.com/pthieenlong/second-brain-mcp/issues">Báo lỗi</a>
+      <a href="https://modelcontextprotocol.io">MCP là gì</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Copy buttons — label thay đổi tại chỗ, tự phục hồi sau 2s.
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy);
+        btn.textContent = 'Đã copy';
+        btn.dataset.done = '1';
+        setTimeout(function () {
+          btn.textContent = 'Copy';
+          delete btn.dataset.done;
+        }, 2000);
+      } catch (err) {
+        btn.textContent = 'Copy thủ công';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+      }
+    });
+  });
+
+  // Reveal on scroll — chỉ vài khối chính, tắt khi người dùng yêu cầu giảm chuyển động.
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var targets = document.querySelectorAll('.rise');
+  if (reduce.matches || !('IntersectionObserver' in window)) {
+    targets.forEach(function (el) { el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.1 });
+    targets.forEach(function (el) { io.observe(el); });
+  }
+</script>
+</body>
+</html>

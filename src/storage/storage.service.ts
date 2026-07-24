@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { promises as fs } from 'fs';
+import { promises as fs, readdirSync } from 'fs';
 import * as path from 'path';
 
 const DEFAULT_CATEGORIES = [
@@ -42,17 +42,38 @@ export class StorageService {
       throw new Error('VAULT_PATH is not defined');
     }
 
-    const configured = this.config
-      .get<string>('NOTE_CATEGORIES')
-      ?.split(',')
-      .map((c) => c.trim())
-      .filter(Boolean);
+    // Try to scan vault directory dynamically for subdirectories starting with digits (e.g. 00-Inbox, 01-...)
+    let categoriesList: string[] = [];
+    try {
+      const entries = readdirSync(this.vaultPath, { withFileTypes: true });
+      categoriesList = entries
+        .filter((entry) => entry.isDirectory() && /^\d{2}-/.test(entry.name))
+        .map((entry) => entry.name)
+        .sort();
+    } catch (e) {
+      console.error('Failed to scan vault categories from disk:', e);
+    }
 
-    this.categories = configured?.length ? configured : DEFAULT_CATEGORIES;
+    if (categoriesList.length > 0) {
+      this.categories = categoriesList;
+    } else {
+      const configured = this.config
+        .get<string>('NOTE_CATEGORIES')
+        ?.split(',')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      this.categories = configured?.length ? configured : DEFAULT_CATEGORIES;
+    }
   }
 
   private resolveCategory(category: string): string {
-    return this.categories.includes(category) ? category : INBOX;
+    if (!category) return INBOX;
+    const normalized = category.replace(/\\/g, '/');
+    const firstSegment = normalized.split('/')[0];
+    if (this.categories.includes(firstSegment)) {
+      return normalized;
+    }
+    return INBOX;
   }
 
   private buildFrontmatter(input: NoteInput, actualCategory: string): string {
@@ -73,8 +94,7 @@ export class StorageService {
 
   private buildFilePath(title: string, actualCategory: string): string {
     const date = new Date().toISOString().split('T')[0];
-    const slug = title
-      .toLocaleLowerCase()
+    const slug = removeVietnameseTones(title)
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
       .slice(0, 50);
@@ -176,7 +196,7 @@ export class StorageService {
     // Category comes from the folder the note sits in, falling back to the
     // frontmatter — the folder is what a user actually sees and moves.
     const relative = path.relative(root, filePath);
-    const folder = path.dirname(relative).split(path.sep)[0];
+    const folder = path.dirname(relative).replace(/\\/g, '/');
     const category =
       folder && folder !== '.' ? folder : (frontmatter.category ?? INBOX);
 
@@ -251,11 +271,26 @@ function firstHeading(raw: string): string | null {
   return match ? match[1].trim() : null;
 }
 
+function removeVietnameseTones(str: string): string {
+  str = str.toLocaleLowerCase();
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e');
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g, 'i');
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, 'o');
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, 'u');
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, 'y');
+  str = str.replace(/đ/g, 'd');
+  
+  // Normalize and remove combining diacritical marks
+  str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return str;
+}
+
 function slugify(title: string): string {
   return (
-    title.toLocaleLowerCase()
+    removeVietnameseTones(title)
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
       .slice(0, 50) || 'untitled'
-  )
+  );
 }
